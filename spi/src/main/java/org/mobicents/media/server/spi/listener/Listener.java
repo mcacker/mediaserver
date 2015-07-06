@@ -23,10 +23,12 @@
 package org.mobicents.media.server.spi.listener;
 
 /**
- * Generaic listener interface.
+ * Generic listener interface.
  * 
  * @author kulikov
  */
-public interface Listener<E extends Event> {
-    public void process(E event);
+public interface Listener<E extends Event<?>> {
+
+	void process(E event);
+
 }

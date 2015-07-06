@@ -72,7 +72,7 @@ public class RTPOutput extends AbstractSink {
 		output.join(this);
 	}
 
-	protected RTPOutput(Scheduler scheduler, RtpTransmitter transmitter) {
+	public RTPOutput(Scheduler scheduler, RtpTransmitter transmitter) {
 		super("Output");
 		this.transmitter = transmitter;
 		output = new AudioOutput(scheduler, 1);

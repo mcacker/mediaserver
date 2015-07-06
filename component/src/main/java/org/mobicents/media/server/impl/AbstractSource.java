@@ -22,7 +22,6 @@
 
 package org.mobicents.media.server.impl;
 
-
 import org.apache.log4j.Logger;
 import org.mobicents.media.MediaSource;
 import org.mobicents.media.server.scheduler.Scheduler;
@@ -32,7 +31,7 @@ import org.mobicents.media.server.spi.memory.Frame;
 /**
  * The base implementation of the Media source.
  * 
- * <code>AbstractSource</code> and <code>AbstractSink</code> are implement general wirring contruct. All media
+ * <code>AbstractSource</code> and <code>AbstractSink</code> are implement general wiring construct. All media
  * components have to extend one of these classes.
  * 
  * @author Oifa Yulian
@@ -40,6 +39,8 @@ import org.mobicents.media.server.spi.memory.Frame;
 public abstract class AbstractSource extends BaseComponent implements MediaSource {
 
 	private static final long serialVersionUID = 3157479112733053482L;
+	
+	private static final Logger logger = Logger.getLogger(AbstractSource.class);
 
 	//transmission statisctics
     private volatile long txPackets;
@@ -66,7 +67,7 @@ public abstract class AbstractSource extends BaseComponent implements MediaSourc
     //media generator
     private final Worker worker;
 
-  //duration of media stream in nanoseconds
+	// duration of media stream in nanoseconds
     protected long duration = -1;
 
     //intial delay for media processing
@@ -75,7 +76,6 @@ public abstract class AbstractSource extends BaseComponent implements MediaSourc
     //media transmission pipe
     protected AbstractSink mediaSink;        
 
-    private static final Logger logger = Logger.getLogger(AbstractSource.class);
     /**
      * Creates new instance of source with specified name.
      * 
@@ -88,57 +88,32 @@ public abstract class AbstractSource extends BaseComponent implements MediaSourc
         this.worker = new Worker(queueNumber);        
     }    
 
-    /**
-     * (Non Java-doc.)
-     * 
-     * @see org.mobicents.media.server.impl.AbstractSource#setInitialDelay(long) 
-     */
+    @Override
     public void setInitialDelay(long initialDelay) {
         this.initialDelay = initialDelay;
     }
 
-    
-    /**
-     * (Non Java-doc).
-     * 
-     * @see org.mobicents.media.MediaSource#getMediaTime();
-     */
+    @Override
     public long getMediaTime() {
         return timestamp;
     }
     
-    /**
-     * (Non Java-doc).
-     * 
-     * @see org.mobicents.media.MediaSource#setDuration(long duration);
-     */
+    @Override
     public void setDuration(long duration) {
         this.duration = duration;
     }
     
-    /**
-     * (Non Java-doc).
-     * 
-     * @see org.mobicents.media.MediaSource#getDuration();
-     */
+    @Override
     public long getDuration() {
         return this.duration;
     }
     
-    /**
-     * (Non Java-doc).
-     * 
-     * @see org.mobicents.media.MediaSource#setMediaTime(long timestamp);
-     */
+    @Override
     public void setMediaTime(long timestamp) {
         this.initialOffset = timestamp;
     }       
 
-    /**
-     * (Non Java-doc).
-     * 
-     * @see org.mobicents.media.MediaSource#start().
-     */
+    @Override
     public void start() {
     	synchronized(worker) {
     		//check scheduler
@@ -167,9 +142,10 @@ public abstract class AbstractSource extends BaseComponent implements MediaSourc
     			//just started component always synchronized as well
     			this.isSynchronized = true;
     			
-    			if(mediaSink!=null)
-    				mediaSink.start();
-    			
+				if (mediaSink != null) {
+					mediaSink.start();
+				}
+
     			//scheduler worker    
     			worker.reinit();
     			scheduler.submit(worker,worker.getQueueNumber());
@@ -200,15 +176,12 @@ public abstract class AbstractSource extends BaseComponent implements MediaSourc
         }
     }
     
-    /**
-     * (Non Java-doc).
-     * 
-     * @see org.mobicents.media.MediaSource#stop().
-     */
+    @Override
     public void stop() {
         if (started) {
             stopped();
         }
+
         started = false;
         if (worker != null) {
             worker.cancel();
@@ -221,54 +194,36 @@ public abstract class AbstractSource extends BaseComponent implements MediaSourc
         timestamp = 0;
     }
 
-    public void activate()
-    {
-    	start();
-    }
+	@Override
+	public void activate() {
+		start();
+	}
+
+	@Override
+	public void deactivate() {
+		stop();
+	}
     
-    public void deactivate()
-    {
-    	stop();
-    }
-    
-    /**
-     * (Non Java-doc).
-     *
-     * @see org.mobicents.media.MediaSource#connect(org.mobicents.media.MediaSink)
-     */
     protected void connect(AbstractSink sink) {
         this.mediaSink = sink;
-        if(started)
+        if(started) {
         	this.mediaSink.start();
+        }
     }
 
-    /**
-     * (Non Java-doc).
-     *
-     * @see org.mobicents.media.MediaSource#disconnect(org.mobicents.media.server.spi.io.Pipe)
-     */
     protected void disconnect() {
-    	if(this.mediaSink!=null)
-    	{
-    		this.mediaSink.stop();
-    		this.mediaSink=null;
-    	}
+		if (this.mediaSink != null) {
+			this.mediaSink.stop();
+			this.mediaSink = null;
+		}
     }
 
-    /**
-     * (Non Java-doc).
-     * 
-     * @see org.mobicents.media.MediaSink#isConnected().
-     */
+    @Override
     public boolean isConnected() {
         return mediaSink != null;
     }
 
-    /**
-     * (Non Java-doc).
-     * 
-     * @see org.mobicents.media.MediaSource#isStarted().
-     */
+    @Override
     public boolean isStarted() {
         return this.started;
     }
@@ -313,20 +268,12 @@ public abstract class AbstractSource extends BaseComponent implements MediaSourc
     protected void stopped() {
     }
 
-    /**
-     * (Non Java-doc).
-     * 
-     * @see org.mobicents.media.MediaSource#getPacketsReceived()
-     */
+    @Override
     public long getPacketsTransmitted() {
     	return txPackets;
     }
 
-    /**
-     * (Non Java-doc).
-     * 
-     * @see org.mobicents.media.MediaSource#getBytesTransmitted()
-     */
+    @Override
     public long getBytesTransmitted() {
         return txBytes;
     }
@@ -364,28 +311,22 @@ public abstract class AbstractSource extends BaseComponent implements MediaSourc
             initialTime=scheduler.getClock().getTime();            
         }
         
-        public void reinit()
-        {
-        	initialTime=scheduler.getClock().getTime();        	
-        }
+		public void reinit() {
+			initialTime = scheduler.getClock().getTime();
+		}
         
-        public int getQueueNumber()
-        {
-        	return queueNumber;
-        }
+		@Override
+		public int getQueueNumber() {
+			return queueNumber;
+		}
 
-        /**
-         * (Non Java-doc.)
-         *
-         * @see org.mobicents.media.server.scheduler.Task#perform()
-         */
+        @Override
         public long perform() {
-        	if(initialDelay+initialTime>scheduler.getClock().getTime())
-        	{
-        		//not a time yet
-        		scheduler.submit(this,queueNumber);
-                return 0;
-        	}
+			if (initialDelay + initialTime > scheduler.getClock().getTime()) {
+				// not a time yet
+				scheduler.submit(this, queueNumber);
+				return 0;
+			}
         	
         	readCount=0;
         	overallDelay=0;
@@ -393,20 +334,17 @@ public abstract class AbstractSource extends BaseComponent implements MediaSourc
         	{
         		readCount++;
         		frame = evolve(timestamp);
-        		if (frame == null) {
-        			if(readCount==1)
-        			{     
-        				//stop if frame was not generated
-        				isSynchronized = false;
-        				return 0;
-        			}
-        			else
-        			{
-        				//frame was generated so continue
-        				scheduler.submit(this,queueNumber);
-        	            return 0;
-        			}
-            	}
+				if (frame == null) {
+					if (readCount == 1) {
+						// stop if frame was not generated
+						isSynchronized = false;
+						return 0;
+					} else {
+						// frame was generated so continue
+						scheduler.submit(this, queueNumber);
+						return 0;
+					}
+				}
 
             	//mark frame with media time and sequence number
             	frame.setTimestamp(timestamp);

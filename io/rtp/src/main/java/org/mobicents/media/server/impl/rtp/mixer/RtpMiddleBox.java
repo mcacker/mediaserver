@@ -1,8 +1,7 @@
 /*
- * JBoss, Home of Professional Open Source
- * Copyright 2011, Red Hat, Inc. and individual contributors
- * by the @authors tag. See the copyright.txt in the distribution for a
- * full listing of individual contributors.
+ * TeleStax, Open Source Cloud Communications
+ * Copyright 2011-2013, Telestax Inc and individual contributors
+ * by the @authors tag. 
  *
  * This is free software; you can redistribute it and/or modify it
  * under the terms of the GNU Lesser General Public License as
@@ -20,14 +19,24 @@
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
 
-package org.mobicents.media.server.spi;
+package org.mobicents.media.server.impl.rtp.mixer;
 
-import org.mobicents.media.server.spi.listener.Listener;
+import org.mobicents.media.server.impl.rtp.RtpPacket;
 
 /**
+ * Middle box that forwards RTP traffic between remote peers.
+ * 
+ * @author Henrique Rosa (henrique.rosa@telestax.com)
  *
- * @author kulikov
  */
-public interface ConnectionListener extends Listener<ConnectionEvent> {
+public interface RtpMiddleBox {
+    
+    void receiveRtp(RtpPacket packet);
+    
+    void sendRtp(RtpPacket packet);
+    
+    void receiveDtmf(RtpPacket packet);
+    
+    void sendDtmf(RtpPacket packet);
 
 }

@@ -28,6 +28,7 @@ import org.mobicents.media.server.component.oob.OOBOutput;
 import org.mobicents.media.server.impl.AbstractSink;
 import org.mobicents.media.server.impl.rtp.RTPDataChannel;
 import org.mobicents.media.server.impl.rtp.RtpTransmitter;
+import org.mobicents.media.server.impl.rtp.mixer.RtpMixerComponent;
 import org.mobicents.media.server.scheduler.Scheduler;
 import org.mobicents.media.server.spi.memory.Frame;
 
@@ -38,56 +39,64 @@ import org.mobicents.media.server.spi.memory.Frame;
  */
 public class DtmfOutput extends AbstractSink {
 
-	private static final long serialVersionUID = 1333531209641759516L;
+    private static final long serialVersionUID = 1333531209641759516L;
 
-	@Deprecated
+    @Deprecated
     private RTPDataChannel channel;
-	private RtpTransmitter transmitter;
-    
+    @Deprecated
+    private RtpTransmitter transmitter;
+    private RtpMixerComponent mixerComponent;
+
     private OOBOutput oobOutput;
-    
+
     /**
      * Creates new transmitter
      */
     @Deprecated
-    public DtmfOutput(Scheduler scheduler,RTPDataChannel channel) {
+    public DtmfOutput(Scheduler scheduler, RTPDataChannel channel) {
         super("Output");
-        this.channel=channel;
-        oobOutput=new OOBOutput(scheduler,1);
-        oobOutput.join(this);        
+        this.channel = channel;
+        oobOutput = new OOBOutput(scheduler, 1);
+        oobOutput.join(this);
     }
-    
-    public DtmfOutput(final Scheduler scheduler,final RtpTransmitter transmitter) {
+
+    public DtmfOutput(final Scheduler scheduler, final RtpTransmitter transmitter) {
         super("Output");
         this.transmitter = transmitter;
-        oobOutput=new OOBOutput(scheduler,1);
-        oobOutput.join(this);        
+        oobOutput = new OOBOutput(scheduler, 1);
+        oobOutput.join(this);
     }
-    
-    public OOBOutput getOOBOutput()
-    {
-    	return this.oobOutput;
+
+    public DtmfOutput(final Scheduler scheduler, final RtpMixerComponent mixerComponnet) {
+        super("Output");
+        this.mixerComponent = mixerComponnet;
+        oobOutput = new OOBOutput(scheduler, 1);
+        oobOutput.join(this);
     }
-    
-    public void activate()
-    {
-    	oobOutput.start();
+
+    public OOBOutput getOOBOutput() {
+        return this.oobOutput;
     }
-    
-    public void deactivate()
-    {
-    	oobOutput.stop();
-    }    
-    
+
+    @Override
+    public void activate() {
+        oobOutput.start();
+    }
+
+    @Override
+    public void deactivate() {
+        oobOutput.stop();
+    }
+
     @Override
     public void onMediaTransfer(Frame frame) throws IOException {
-    	// TODO deprecated - hrosa
-    	if(this.channel != null) {
-    		channel.sendDtmf(frame);
-    	}
-    	
-    	if(this.transmitter != null) {
-    		this.transmitter.sendDtmf(frame);
-    	}
-    }            
+        // TODO deprecated - hrosa
+        if (this.channel != null) {
+            channel.sendDtmf(frame);
+        }
+
+        if (this.transmitter != null) {
+            this.transmitter.sendDtmf(frame);
+        }
+    }
 }

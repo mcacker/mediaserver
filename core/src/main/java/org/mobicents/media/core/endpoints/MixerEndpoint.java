@@ -1,81 +1,71 @@
-/*
- * JBoss, Home of Professional Open Source
- * Copyright 2011, Red Hat, Inc. and individual contributors
- * by the @authors tag. See the copyright.txt in the distribution for a
- * full listing of individual contributors.
- *
- * This is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Lesser General Public License as
- * published by the Free Software Foundation; either version 2.1 of
- * the License, or (at your option) any later version.
- *
- * This software is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this software; if not, write to the Free
- * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
- */
-
 package org.mobicents.media.core.endpoints;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.mobicents.media.core.connections.AbstractConnection;
 import org.mobicents.media.server.component.audio.AudioMixer;
+import org.mobicents.media.server.component.audio.MixerComponent;
 import org.mobicents.media.server.component.oob.OOBMixer;
+import org.mobicents.media.server.concurrent.ConcurrentMap;
 import org.mobicents.media.server.spi.Connection;
 import org.mobicents.media.server.spi.ConnectionMode;
 import org.mobicents.media.server.spi.ConnectionType;
+import org.mobicents.media.server.spi.RelayType;
 import org.mobicents.media.server.spi.ResourceUnavailableException;
+import org.mobicents.media.server.spi.memory.Frame;
 
 /**
- * Basic implementation of the endpoint.
  * 
- * @author yulian oifa
- * @author amit bhayani
+ * @author hrosa
+ *
  */
-public class BaseMixerEndpointImpl extends AbstractEndpoint {
+public class MixerEndpoint extends AbstractEndpoint {
 
-	protected AudioMixer audioMixer;
+	private final AudioMixer mixer;
 	protected OOBMixer oobMixer;
+
+	private final ConcurrentMap<MixerComponent> mixerComponents;
 
 	private AtomicInteger loopbackCount = new AtomicInteger(0);
 	private AtomicInteger readCount = new AtomicInteger(0);
 	private AtomicInteger writeCount = new AtomicInteger(0);
-
-	public BaseMixerEndpointImpl(String localName) {
-		super(localName);
+	
+	public MixerEndpoint(String localName) {
+		super(localName, RelayType.MIXER);
+		this.mixer = new AudioMixer(super.getScheduler());
+		this.mixerComponents = new ConcurrentMap<MixerComponent>(6);
 	}
-
+	
 	@Override
-	public void start() throws ResourceUnavailableException {
-		super.start();
-		audioMixer = new AudioMixer(getScheduler());
-		oobMixer = new OOBMixer(getScheduler());
-	}
-
-	@Override
-	public Connection createConnection(ConnectionType type, Boolean isLocal) throws ResourceUnavailableException {
+	public Connection createConnection(ConnectionType type, Boolean isLocal)
+			throws ResourceUnavailableException {
+		// Create connection
 		Connection connection = super.createConnection(type, isLocal);
-		audioMixer.addComponent(((AbstractConnection) connection).getAudioComponent());
-		oobMixer.addComponent(((AbstractConnection) connection).getOOBComponent());
+
+		// Create mixer component for the connection
+		MixerComponent mixerComponent = new MixerComponent(connection.getId());
+		mixerComponent.addAudioInput(connection.getAudioInput());
+		mixerComponent.addAudioOutput(connection.getAudioOutput());
+		mixerComponent.addOOBInput(connection.getDtfmInput());
+		mixerComponent.addOOBOutput(connection.getDtmfOutput());
+		this.mixerComponents.put(connection.getId(), mixerComponent);
+		
 		return connection;
 	}
-
+	
 	@Override
 	public void deleteConnection(Connection connection, ConnectionType connectionType) {
 		super.deleteConnection(connection, connectionType);
-		audioMixer.release(((AbstractConnection) connection).getAudioComponent());
-		oobMixer.release(((AbstractConnection) connection).getOOBComponent());
+		MixerComponent mixerComponent = this.mixerComponents.remove(connection.getId());
+		mixer.release(mixerComponent.getAudioComponent());
+		oobMixer.release(mixerComponent.getOOBComponent());
 	}
 
 	@Override
 	public void modeUpdated(ConnectionMode oldMode, ConnectionMode newMode) {
-		int readCount = 0, loopbackCount = 0, writeCount = 0;
+		int readCount = 0;
+		int loopbackCount = 0;
+		int writeCount = 0;
+		
 		switch (oldMode) {
 		case RECV_ONLY:
 			readCount -= 1;
@@ -123,12 +113,19 @@ public class BaseMixerEndpointImpl extends AbstractEndpoint {
 			writeCount = this.writeCount.addAndGet(writeCount);
 
 			if (loopbackCount > 0 || readCount == 0 || writeCount == 0) {
-				audioMixer.stop();
+				mixer.stop();
 				oobMixer.stop();
 			} else {
-				audioMixer.start();
+				mixer.start();
 				oobMixer.start();
 			}
 		}
 	}
+
+	@Override
+	public void processFrame(Connection sender, Frame frame) {
+		MixerComponent mixerComponent = this.mixerComponents.get(sender.getId());
+		mixerComponent.getAudioComponent().offer(new int[0]);
+	}
+
 }

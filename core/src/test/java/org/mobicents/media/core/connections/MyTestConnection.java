@@ -40,7 +40,7 @@ import org.mobicents.media.server.spi.ConnectionFailureListener;
  *
  * @author yulian oifa
  */
-public class MyTestConnection extends BaseConnection {
+public class MyTestConnection extends AbstractConnection {
 
     private volatile boolean created;
     private volatile boolean opened;

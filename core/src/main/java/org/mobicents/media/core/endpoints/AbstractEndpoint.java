@@ -28,15 +28,15 @@ import org.apache.log4j.Logger;
 import org.mobicents.media.Component;
 import org.mobicents.media.ComponentType;
 import org.mobicents.media.core.ResourcesPool;
-import org.mobicents.media.core.connections.BaseConnection;
+import org.mobicents.media.core.connections.AbstractConnection;
 import org.mobicents.media.server.concurrent.ConcurrentMap;
 import org.mobicents.media.server.scheduler.Scheduler;
 import org.mobicents.media.server.spi.Connection;
-import org.mobicents.media.server.spi.ConnectionMode;
 import org.mobicents.media.server.spi.ConnectionType;
 import org.mobicents.media.server.spi.Endpoint;
 import org.mobicents.media.server.spi.EndpointState;
 import org.mobicents.media.server.spi.MediaType;
+import org.mobicents.media.server.spi.RelayType;
 import org.mobicents.media.server.spi.ResourceUnavailableException;
 
 /**
@@ -45,7 +45,9 @@ import org.mobicents.media.server.spi.ResourceUnavailableException;
  * @author yulian oifa
  * @author amit bhayani
  */
-public abstract class BaseEndpointImpl implements Endpoint {
+public abstract class AbstractEndpoint implements Endpoint {
+
+	private final Logger logger = Logger.getLogger(AbstractEndpoint.class);
 
 	// local name of this endpoint
 	private String localName;
@@ -62,14 +64,14 @@ public abstract class BaseEndpointImpl implements Endpoint {
 	// job scheduler
 	private Scheduler scheduler;
 
-	// logger instance
-	private final Logger logger = Logger.getLogger(BaseEndpointImpl.class);
-
 	private ConcurrentMap<Connection> connections = new ConcurrentMap<Connection>();
 	private Iterator<Connection> connectionsIterator;
+	
+	private final RelayType relayType;
 
-	public BaseEndpointImpl(String localName) {
+	public AbstractEndpoint(String localName, RelayType relayType) {
 		this.localName = localName;
+		this.relayType = relayType;
 	}
 
 	@Override
@@ -158,12 +160,10 @@ public abstract class BaseEndpointImpl implements Endpoint {
 			break;
 		}
 
-		connection.setIsLocal(isLocal);
-
 		try {
-			((BaseConnection) connection).bind();
+			((AbstractConnection) connection).bind();
 		} catch (Exception e) {
-			e.printStackTrace();
+			logger.error("Could not bind connection: " + e.getMessage(), e);
 			throw new ResourceUnavailableException(e.getMessage());
 		}
 
@@ -174,7 +174,7 @@ public abstract class BaseEndpointImpl implements Endpoint {
 
 	@Override
 	public void deleteConnection(Connection connection) {
-		((BaseConnection) connection).close();
+		((AbstractConnection) connection).close();
 	}
 
 	@Override
@@ -199,7 +199,7 @@ public abstract class BaseEndpointImpl implements Endpoint {
 	public void deleteAllConnections() {
 		connectionsIterator = connections.valuesIterator();
 		while (connectionsIterator.hasNext()) {
-			((BaseConnection) connectionsIterator.next()).close();
+			((AbstractConnection) connectionsIterator.next()).close();
 		}
 	}
 
@@ -297,6 +297,8 @@ public abstract class BaseEndpointImpl implements Endpoint {
 	}
 
 	@Override
-	public abstract void modeUpdated(ConnectionMode oldMode, ConnectionMode newMode);
+	public RelayType getRelayType() {
+		return this.relayType;
+	}
 
 }

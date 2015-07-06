@@ -49,16 +49,11 @@ public class RtpHandler implements PacketHandler {
 	
 	private RTPFormats rtpFormats;
 	private final RtpClock rtpClock;
-	private final RtpClock oobClock;
-	
-	private JitterBuffer jitterBuffer;
-	private int jitterBufferSize;
-	private final RTPInput rtpInput;
-	private final DtmfInput dtmfInput;
 	
 	private boolean loopable;
 	private boolean receivable;
 	
+	// XXX statistics should move to the RTP middlebox near the endpoint
 	private final RtpStatistics statistics;
 	private final RtpPacket rtpPacket;
 	
@@ -70,14 +65,6 @@ public class RtpHandler implements PacketHandler {
 		this.pipelinePriority = 0;
 		
 		this.rtpClock = clock;
-		this.oobClock = oobClock;
-		
-		this.jitterBufferSize = jitterBufferSize;
-		this.jitterBuffer = new JitterBuffer(this.rtpClock, this.jitterBufferSize);
-		
-		this.rtpInput = new RTPInput(scheduler, jitterBuffer);
-		this.jitterBuffer.setListener(this.rtpInput);
-		this.dtmfInput = new DtmfInput(scheduler, oobClock);
 		
 		this.rtpFormats = new RTPFormats();
 		this.statistics = statistics;
@@ -88,20 +75,13 @@ public class RtpHandler implements PacketHandler {
 		this.secure = false;
 	}
 	
+	@Override
 	public int getPipelinePriority() {
 		return pipelinePriority;
 	}
 	
 	public void setPipelinePriority(int pipelinePriority) {
 		this.pipelinePriority = pipelinePriority;
-	}
-	
-	public RTPInput getRtpInput() {
-		return rtpInput;
-	}
-	
-	public DtmfInput getDtmfInput() {
-		return dtmfInput;
 	}
 	
 	public boolean isLoopable() {
@@ -120,10 +100,6 @@ public class RtpHandler implements PacketHandler {
 		this.receivable = receivable;
 	}
 	
-	public void useJitterBuffer(boolean useBuffer) {
-		this.jitterBuffer.setBufferInUse(useBuffer);
-	}
-	
 	/**
 	 * Modifies the map between format and RTP payload number
 	 * 
@@ -132,7 +108,6 @@ public class RtpHandler implements PacketHandler {
 	 */
 	public void setFormatMap(final RTPFormats rtpFormats) {
 		this.rtpFormats = rtpFormats;
-		this.jitterBuffer.setFormats(rtpFormats);
 	}
 	
 	public RTPFormats getFormatMap() {
@@ -149,29 +124,18 @@ public class RtpHandler implements PacketHandler {
 		this.dtlsHandler = null;
 	}
 	
-	public void activate() {
-		this.rtpInput.activate();
-		this.dtmfInput.activate();
-	}
-	
-	public void deactivate() {
-		this.rtpInput.deactivate();
-		this.dtmfInput.deactivate();
-	}
-	
 	public void reset() {
-		this.deactivate();
-		this.dtmfInput.reset();
-		
 		if(this.secure) {
 			disableSrtp();
 		}
 	}
 	
+	@Override
 	public boolean canHandle(byte[] packet) {
 		return canHandle(packet, packet.length, 0);
 	}
 	
+	@Override
 	public boolean canHandle(byte[] packet, int dataLength, int offset) {
 		/*
 		 * The RTP header has the following format:
@@ -238,10 +202,12 @@ public class RtpHandler implements PacketHandler {
 		return false;
 	}
 	
+	@Override
 	public byte[] handle(byte[] packet, InetSocketAddress localPeer, InetSocketAddress remotePeer) throws PacketHandlerException {
 		return this.handle(packet, packet.length, 0, localPeer, remotePeer);
 	}
 
+	@Override
 	public byte[] handle(byte[] packet, int dataLength, int offset, InetSocketAddress localPeer, InetSocketAddress remotePeer) throws PacketHandlerException {
 		// Do not handle data while DTLS handshake is ongoing. WebRTC calls only.
 		if(this.secure && !this.dtlsHandler.isHandshakeComplete()) {
@@ -267,12 +233,6 @@ public class RtpHandler implements PacketHandler {
 			buffer.clear();
 			buffer.put(packet, offset, dataLength);
 			buffer.flip();
-		}
-		
-		// Restart jitter buffer for first received packet
-		if(this.statistics.getRtpPacketsReceived() == 0) {
-			logger.info("Restarting jitter buffer");
-			this.jitterBuffer.restart();
 		}
 		
 		// For RTP keep-alive purposes
@@ -305,12 +265,13 @@ public class RtpHandler implements PacketHandler {
 					}
 				}
 			} else {
-				logger.warn("Skipping packet because limit of the packets buffer is zero");
+				logger.warn("Skipping packet because limit of the packets buffer is zero.");
 			}
 		}
 		return null;
 	}
 	
+	@Override
 	public int compareTo(PacketHandler o) {
 		if(o == null) {
 			return 1;

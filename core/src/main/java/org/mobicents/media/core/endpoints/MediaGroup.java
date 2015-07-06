@@ -22,23 +22,21 @@
 
 package org.mobicents.media.core.endpoints;
 
+import java.util.concurrent.Semaphore;
+
 import org.mobicents.media.Component;
 import org.mobicents.media.ComponentType;
-
-import org.mobicents.media.server.spi.ConnectionMode;
-import org.mobicents.media.server.spi.Endpoint;
+import org.mobicents.media.core.ResourcesPool;
 import org.mobicents.media.server.component.audio.AudioComponent;
 import org.mobicents.media.server.component.oob.OOBComponent;
-import org.mobicents.media.core.ResourcesPool;
-
+import org.mobicents.media.server.impl.resource.audio.AudioRecorderImpl;
 import org.mobicents.media.server.impl.resource.dtmf.DetectorImpl;
 import org.mobicents.media.server.impl.resource.dtmf.GeneratorImpl;
-import org.mobicents.media.server.impl.resource.phone.PhoneSignalGenerator;
-import org.mobicents.media.server.impl.resource.phone.PhoneSignalDetector;
-import org.mobicents.media.server.impl.resource.audio.AudioRecorderImpl;
 import org.mobicents.media.server.impl.resource.mediaplayer.audio.AudioPlayerImpl;
-
-import java.util.concurrent.Semaphore;
+import org.mobicents.media.server.impl.resource.phone.PhoneSignalDetector;
+import org.mobicents.media.server.impl.resource.phone.PhoneSignalGenerator;
+import org.mobicents.media.server.spi.ConnectionMode;
+import org.mobicents.media.server.spi.Endpoint;
 /**
  * Implements Local Components Holder for endpoint
  * Usefull for jsr 309 structure

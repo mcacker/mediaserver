@@ -25,8 +25,6 @@ package org.mobicents.media.core.connections;
 import java.io.IOException;
 
 import org.apache.log4j.Logger;
-import org.mobicents.media.server.component.audio.AudioComponent;
-import org.mobicents.media.server.component.oob.OOBComponent;
 import org.mobicents.media.server.scheduler.Scheduler;
 import org.mobicents.media.server.scheduler.Task;
 import org.mobicents.media.server.spi.Connection;
@@ -47,7 +45,7 @@ import org.mobicents.media.server.utils.Text;
  * 
  * @author Oifa Yulian
  */
-public abstract class BaseConnection implements Connection {
+public abstract class AbstractConnection implements Connection {
 
 	private int id;
 
@@ -74,7 +72,9 @@ public abstract class BaseConnection implements Connection {
 	private Endpoint activeEndpoint;
 
 	private ConnectionMode connectionMode = ConnectionMode.INACTIVE;
-	private static final Logger logger = Logger.getLogger(BaseConnection.class);
+	private static final Logger logger = Logger.getLogger(AbstractConnection.class);
+	
+	private final boolean local;
 
 	/**
 	 * Creates basic connection implementation.
@@ -84,7 +84,7 @@ public abstract class BaseConnection implements Connection {
 	 * @param endpoint
 	 *            the endpoint owner of this connection.
 	 */
-	public BaseConnection(int id, Scheduler scheduler) {
+	protected AbstractConnection(int id, Scheduler scheduler, boolean local) {
 		this.id = id;
 		this.textualId = Integer.toHexString(id);
 
@@ -94,11 +94,9 @@ public abstract class BaseConnection implements Connection {
 
 		// initialize event objects
 		this.stateEvent = new ConnectionEventImpl(ConnectionEvent.STATE_CHANGE, this);
+		
+		this.local = local;
 	}
-
-	public abstract AudioComponent getAudioComponent();
-
-	public abstract OOBComponent getOOBComponent();
 
 	@Override
 	public int getId() {
@@ -246,22 +244,11 @@ public abstract class BaseConnection implements Connection {
 		}
 	}
 
-	/**
-	 * Gets the current mode of this connection.
-	 * 
-	 * @return integer constant indicating mode.
-	 */
 	@Override
 	public ConnectionMode getMode() {
 		return connectionMode;
 	}
 
-	/**
-	 * Modify mode of this connection for all known media types.
-	 * 
-	 * @param mode
-	 *            the new mode of the connection.
-	 */
 	@Override
 	public void setMode(ConnectionMode mode) throws ModeNotSupportedException {
 		if (this.activeEndpoint != null) {
@@ -270,9 +257,6 @@ public abstract class BaseConnection implements Connection {
 		this.connectionMode = mode;
 	}
 
-	/**
-	 * Sets connection failure listener.
-	 */
 	@Override
 	public abstract void setConnectionFailureListener(ConnectionFailureListener connectionFailureListener);
 
@@ -298,58 +282,18 @@ public abstract class BaseConnection implements Connection {
 	 */
 	protected abstract void onFailed();
 
-	/**
-	 * Joins endpoint wich executes this connection with other party.
-	 * 
-	 * @param other
-	 *            the connection executed by other party endpoint.
-	 * @throws IOException
-	 */
 	@Override
 	public abstract void setOtherParty(Connection other) throws IOException;
 
-	/**
-	 * Joins endpoint which executes this connection with other party.
-	 * 
-	 * @param descriptor
-	 *            the SDP descriptor of the other party.
-	 * @throws IOException
-	 */
 	@Override
 	public abstract void setOtherParty(byte[] descriptor) throws IOException;
 
-	/**
-	 * Joins endpoint which executes this connection with other party.
-	 * 
-	 * @param descriptor
-	 *            the SDP descriptor of the other party.
-	 * @throws IOException
-	 */
 	@Override
 	public abstract void setOtherParty(Text descriptor) throws IOException;
 
-	/**
-	 * Gets whether connection should be bound to local or remote interface.
-	 * <p>
-	 * <b>Supported only for RTP connections.</b>
-	 * </p>
-	 * 
-	 * @return boolean value
-	 */
 	@Override
-	public boolean getIsLocal() {
-		return false;
-	}
-
-	/**
-	 * Sets whether connection should be bound to local or remote interface.
-	 * <p>
-	 * <b>Supported only for RTP connections.</b>
-	 * </p>
-	 */
-	@Override
-	public void setIsLocal(boolean isLocal) {
-		// do nothing
+	public boolean isLocal() {
+		return this.local;
 	}
 	
 	protected void releaseConnection(ConnectionType connectionType) {

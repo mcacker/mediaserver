@@ -17,7 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>
  *
  */
-
 package org.mobicents.media.server.impl.rtp;
 
 import java.io.IOException;
@@ -32,6 +31,7 @@ import org.mobicents.media.io.ice.network.stun.StunHandler;
 import org.mobicents.media.server.component.audio.AudioComponent;
 import org.mobicents.media.server.component.oob.OOBComponent;
 import org.mobicents.media.server.impl.rtcp.RtcpHandler;
+import org.mobicents.media.server.impl.rtp.mixer.RtpMiddleBox;
 import org.mobicents.media.server.impl.rtp.sdp.RTPFormats;
 import org.mobicents.media.server.impl.rtp.statistics.RtpStatistics;
 import org.mobicents.media.server.impl.srtp.DtlsHandler;
@@ -69,18 +69,15 @@ public class RtpChannel extends MultiplexedChannel implements DtlsListener {
 	// Core elements
 	private final UdpManager udpManager;
 	private final Scheduler scheduler;
-	private final RtpClock clock;
-	private final RtpClock oobClock;
-	private final int jitterBufferSize;
 	
 	// Heart beat
 	private final HeartBeat heartBeat;
 	
 	// Remote peer
 	private SocketAddress remotePeer;
-	
-	// Transmitter
-	private RtpTransmitter transmitter;
+
+	// RTP gateway
+	private final RtpMiddleBox rtpGateway;
 	
 	// Protocol handlers pipeline
 	private static final int RTP_PRIORITY = 3; // a packet each 20ms
@@ -91,10 +88,6 @@ public class RtpChannel extends MultiplexedChannel implements DtlsListener {
 	private DtlsHandler dtlsHandler;
 	private StunHandler stunHandler;
 	private RtcpHandler rtcpHandler; // only used when rtcp-mux is enabled
-	
-	// Media components
-	private AudioComponent audioComponent;
-	private OOBComponent oobComponent;
 	
 	// Media formats
 	protected final static AudioFormat LINEAR_FORMAT = FormatFactory.createAudioFormat("LINEAR", 8000, 16, 1);
@@ -117,12 +110,9 @@ public class RtpChannel extends MultiplexedChannel implements DtlsListener {
 		// Core and network elements
 		this.scheduler = scheduler;
 		this.udpManager = udpManager;
-		this.clock = clock;
-		this.oobClock = oobClock;
 		
 		// Channel attributes
 		this.channelId = channelId;
-		this.jitterBufferSize = jitterBufferSize;
 		this.statistics = statistics;
 		this.bound = false;
 		
@@ -465,6 +455,7 @@ public class RtpChannel extends MultiplexedChannel implements DtlsListener {
 		return new Text();
 	}
 	
+	@Override
 	public void close() {
 		if(rtcpMux) {
 			this.rtcpHandler.leaveRtpSession();
@@ -495,19 +486,22 @@ public class RtpChannel extends MultiplexedChannel implements DtlsListener {
 		}
 	}
 	
+	@Override
 	public void onDtlsHandshakeComplete() {
-		logger.info("DTLS handshake completed for RTP candidate.");
+		logger.debug("DTLS handshake completed for RTP candidate.");
 		if(this.rtcpMux) {
 			this.rtcpHandler.joinRtpSession();
 		}
 	}
 
+	@Override
 	public void onDtlsHandshakeFailed(Throwable e) {
 		this.rtpListener.onRtpFailure(e);
 	}
 	
 	private class HeartBeat extends Task {
 
+		@Override
 		public int getQueueNumber() {
 			return Scheduler.HEARTBEAT_QUEUE;
 		}

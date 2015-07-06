@@ -259,5 +259,13 @@ public class RtpTransmitter {
 			LOGGER.error(e.getMessage(), e);
 		}
 	}
+	
+	public void forward(RtpPacket packet) {
+		try {
+			send(packet);
+		} catch (Exception e) {
+			LOGGER.error("Could not forward RTP packet: " + e.getMessage(), e);
+		}
+	}
 
 }
